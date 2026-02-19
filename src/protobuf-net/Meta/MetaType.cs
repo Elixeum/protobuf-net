@@ -418,7 +418,7 @@ namespace ProtoBuf.Meta
             if (type is null) throw new ArgumentNullException(nameof(type));
 
             IRuntimeProtoSerializerNode coreSerializer = model.TryGetBasicTypeSerializer(type);
-            if (coreSerializer is object)
+            if (coreSerializer is object && !model.AllowSurrogateForBuiltInTypes)
             {
                 throw InbuiltType(type);
             }

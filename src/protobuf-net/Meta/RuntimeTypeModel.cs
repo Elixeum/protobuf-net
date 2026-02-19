@@ -52,6 +52,7 @@ namespace ProtoBuf.Meta
             UseImplicitZeroDefaults = 1 << 15,
             AllowParseableTypes = 1 << 16,
             AutoAddProtoContractTypesOnly = 1 << 17,
+            AllowSurrogateForBuiltInTypes = 1 << 18,
         }
 
         /// <summary>
@@ -125,6 +126,15 @@ namespace ProtoBuf.Meta
         {
             get { return GetOption(RuntimeTypeModelOptions.AllowParseableTypes); }
             set { SetOption(RuntimeTypeModelOptions.AllowParseableTypes, value); }
+        }
+
+        /// <summary>
+        /// Global switch that allows surrogates to be applied to types that have built-in protobuf-net behavior.
+        /// </summary>
+        public bool AllowSurrogateForBuiltInTypes
+        {
+            get { return GetOption(RuntimeTypeModelOptions.AllowSurrogateForBuiltInTypes); }
+            set { SetOption(RuntimeTypeModelOptions.AllowSurrogateForBuiltInTypes, value); }
         }
 
         /// <summary>
@@ -267,7 +277,11 @@ namespace ProtoBuf.Meta
                     {
                         Type effectiveType = Nullable.GetUnderlyingType(type) ?? type;
 
-                        var isInbuiltType = (ValueMember.TryGetCoreSerializer(this, DataFormat.Default, DefaultCompatibilityLevel, effectiveType, out var _, false, false, false, false) is object);
+                        var isInbuiltType = ValueMember.TryGetCoreSerializer(this, DataFormat.Default, DefaultCompatibilityLevel, effectiveType, out var _, false, false, false, false) is object;
+                        if (isInbuiltType && AllowSurrogateForBuiltInTypes && IsDefined(effectiveType, DefaultCompatibilityLevel))
+                        {
+                            isInbuiltType = !FindWithAmbientCompatibility(effectiveType, DefaultCompatibilityLevel).HasSurrogate;
+                        }
                         if (isInbuiltType)
                         {
                             (inbuiltTypes ??= []).Add(effectiveType);
@@ -553,6 +567,10 @@ namespace ProtoBuf.Meta
         private void TryGetCoreSerializer(List<MetaType> list, Type itemType, CompatibilityLevel ambient, HashSet<string> imports, string origin)
         {
             var coreSerializer = ValueMember.TryGetCoreSerializer(this, DataFormat.Default, CompatibilityLevel.NotSpecified, itemType, out _, false, false, false, false);
+            if (coreSerializer is object && AllowSurrogateForBuiltInTypes && IsDefined(itemType, ambient))
+            {
+                coreSerializer = FindWithAmbientCompatibility(itemType, ambient).HasSurrogate ? null : coreSerializer;
+            }
             if (coreSerializer is object)
             {
                 return;
@@ -715,6 +733,7 @@ namespace ProtoBuf.Meta
             type = DynamicStub.GetEffectiveType(type);
             int key = types.IndexOf(MetaTypeFinder, type);
             MetaType metaType;
+            bool shouldAdd = AutoAddMissingTypes || addEvenIfAutoDisabled;
 
             // the fast happy path: meta-types we've already seen
             if (key >= 0)
@@ -724,13 +743,20 @@ namespace ProtoBuf.Meta
                 {
                     WaitOnLock();
                 }
+                if (AllowSurrogateForBuiltInTypes && !type.IsEnum
+                    && TryGetBasicTypeSerializer(type) is object
+                    && !metaType.HasSurrogate)
+                {
+                    if (demand && !addWithContractOnly) return key;
+                    if (shouldAdd && !addWithContractOnly) throw MetaType.InbuiltType(type);
+                    return -1;
+                }
                 return key;
             }
 
             // the fast fail path: types that will never have a meta-type
-            bool shouldAdd = AutoAddMissingTypes || addEvenIfAutoDisabled;
-
-            if (!type.IsEnum && TryGetBasicTypeSerializer(type) is object)
+            if (!type.IsEnum && TryGetBasicTypeSerializer(type) is object
+                && !(AllowSurrogateForBuiltInTypes && demand && !addWithContractOnly))
             {
                 if (shouldAdd && !addWithContractOnly) throw MetaType.InbuiltType(type);
                 return -1; // this will never be a meta-type
@@ -1980,6 +2006,10 @@ namespace ProtoBuf.Meta
             }
 
             IRuntimeProtoSerializerNode ser = ValueMember.TryGetCoreSerializer(this, dataFormat, compatibilityLevel, effectiveType, out _, false, false, false, false);
+            if (ser is object && AllowSurrogateForBuiltInTypes && IsDefined(effectiveType, compatibilityLevel))
+            {
+                ser = FindWithAmbientCompatibility(effectiveType, compatibilityLevel).HasSurrogate ? null : ser;
+            }
             if (ser is null)
             {   // model type
                 if (asReference || dynamicType)

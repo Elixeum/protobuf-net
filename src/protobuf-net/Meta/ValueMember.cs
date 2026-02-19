@@ -621,6 +621,28 @@ namespace ProtoBuf.Meta
                     return null;
                 }
             }
+
+            if (allowComplexTypes && model is not null && model.AllowSurrogateForBuiltInTypes
+                && model.TryGetBasicTypeSerializer(type) is object
+                && model.IsDefined(type, compatibilityLevel))
+            {
+                var meta = model.FindWithAmbientCompatibility(type, compatibilityLevel);
+                if (meta.HasSurrogate)
+                {
+                    IProtoTypeSerializer serializer = meta.Serializer;
+                    if (serializer.Features.GetCategory() == SerializerFeatures.CategoryScalar)
+                    {
+                        dataFormat = meta.surrogateDataFormat;
+                        if (TryGetCoreSerializer(model, dataFormat, meta.CompatibilityLevel, meta.surrogateType, out defaultWireType, false, false, false, false) is null)
+                        {
+                            defaultWireType = serializer.Features.GetWireType();
+                        }
+                        return serializer;
+                    }
+                    return SubItemSerializer.Create(type, meta, ref dataFormat, out defaultWireType);
+                }
+            }
+
             ProtoTypeCode code = Helpers.GetTypeCode(type);
             switch (code)
             {

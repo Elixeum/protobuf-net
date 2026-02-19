@@ -132,6 +132,20 @@ As an alternative to writing your classes and decorating them, you can generate 
 
 In v2+, everything that can be done with attributes can also be configured at runtime via `RuntimeTypeModel`. The Serializer.* methods are basically just shortcuts to RuntimeTypeModel.Default.*, so to manipulate the behaviour of Serializer.*, you must configure RuntimeTypeModel.Default. 
 
+### Built-in type surrogate override
+
+`RuntimeTypeModel.AllowSurrogateForBuiltInTypes` controls whether built-in BCL types (for example `DateTime` and `Guid`) may be explicitly configured with `SetSurrogate`.
+
+- Default (`false`): existing behavior is unchanged; attempting to register a surrogate for a built-in type throws.
+- Enabled (`true`): built-in serialization behavior remains in effect until a custom surrogate is actually registered.
+- Enabled + custom surrogate registered: the registered surrogate is used for that type.
+
+```csharp
+var model = RuntimeTypeModel.Create();
+model.AllowSurrogateForBuiltInTypes = true;
+model[typeof(DateTime)].SetSurrogate(typeof(DateTimeSurrogate));
+```
+
 ## Support
 
 I try to be responsive to [Stack Overflow questions in the `protobuf-net` tag](https://stackoverflow.com/questions/tagged/protobuf-net), [issues logged on GitHub](https://github.com/protobuf-net/protobuf-net), [email](mailto:marc.gravell@gmail.com), etc. I don't currently offer a paid support channel. If I've helped you, feel free to [buy me a coffee](https://buymeacoff.ee/marcgravell) or see the "Sponsor" link [at the top of the GitHub page](https://github.com/protobuf-net/protobuf-net).
