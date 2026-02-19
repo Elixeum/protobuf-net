@@ -1487,8 +1487,8 @@ namespace ProtoBuf.Meta
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         internal static ISerializer<T> GetSerializer<[DynamicallyAccessedMembers(DynamicAccess.ContractType)] T>(TypeModel model, CompatibilityLevel ambient = default)
-           => SerializerCache<PrimaryTypeProvider, T>.InstanceField
-            ?? model?.GetSerializerCore<T>(ambient)
+           => model?.GetSerializerCore<T>(ambient)
+            ?? SerializerCache<PrimaryTypeProvider, T>.InstanceField
             ?? NoSerializer<T>(model);
 
         /// <summary>
@@ -1542,8 +1542,8 @@ namespace ProtoBuf.Meta
         [UnconditionalSuppressMessage("Trimming", "IL2091",
             Justification = "Reached only where RuntimeTypeModel - the one override that reflects over T - cannot function; see the remarks.")]
         private static ISerializer<T> GetSerializerWithoutReflection<T>(TypeModel model, CompatibilityLevel ambient)
-            => SerializerCache<PrimaryTypeProvider, T>.InstanceField
-            ?? model?.GetSerializerCore<T>(ambient)
+            => model?.GetSerializerCore<T>(ambient)
+            ?? SerializerCache<PrimaryTypeProvider, T>.InstanceField
             ?? NoSerializer<T>(model);
 
         /// <summary>
@@ -1589,8 +1589,8 @@ namespace ProtoBuf.Meta
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         internal static ISerializer<T> TryGetSerializer<[DynamicallyAccessedMembers(DynamicAccess.ContractType)] T>(TypeModel model)
-          => SerializerCache<PrimaryTypeProvider, T>.InstanceField
-            ?? model?.GetSerializer<T>();
+          => model?.GetSerializer<T>()
+            ?? SerializerCache<PrimaryTypeProvider, T>.InstanceField;
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         internal static ISubTypeSerializer<T> GetSubTypeSerializer<[DynamicallyAccessedMembers(DynamicAccess.ContractType)] T>(TypeModel model) where T : class

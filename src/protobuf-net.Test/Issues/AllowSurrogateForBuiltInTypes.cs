@@ -52,6 +52,11 @@ namespace ProtoBuf.Test.Issues
             model[typeof(DateTime)].SetSurrogate(typeof(DateTimeSurrogate));
             model[typeof(Guid)].SetSurrogate(typeof(GuidSurrogate));
 
+            var rootDateTime = new DateTime(2024, 4, 5, 6, 7, 8, DateTimeKind.Utc).AddTicks(7);
+            var rootGuid = Guid.NewGuid();
+            Assert.Equal(rootDateTime, model.DeepClone(rootDateTime));
+            Assert.Equal(rootGuid, model.DeepClone(rootGuid));
+
             var value = new BuiltInPayload
             {
                 When = new DateTime(2024, 1, 2, 3, 4, 5, DateTimeKind.Utc).AddTicks(1234),
@@ -62,10 +67,10 @@ namespace ProtoBuf.Test.Issues
 
             Assert.Equal(value.When, clone.When);
             Assert.Equal(value.Id, clone.Id);
-            Assert.True(DateTimeSurrogate.ToSurrogateCount > 0);
-            Assert.True(DateTimeSurrogate.ToModelCount > 0);
-            Assert.True(GuidSurrogate.ToSurrogateCount > 0);
-            Assert.True(GuidSurrogate.ToModelCount > 0);
+            Assert.True(DateTimeSurrogate.ToSurrogateCount > 0, $"DateTime to-surrogate count: {DateTimeSurrogate.ToSurrogateCount}");
+            Assert.True(DateTimeSurrogate.ToModelCount > 0, $"DateTime from-surrogate count: {DateTimeSurrogate.ToModelCount}");
+            Assert.True(GuidSurrogate.ToSurrogateCount > 0, $"Guid to-surrogate count: {GuidSurrogate.ToSurrogateCount}");
+            Assert.True(GuidSurrogate.ToModelCount > 0, $"Guid from-surrogate count: {GuidSurrogate.ToModelCount}");
         }
 
         private static byte[] Serialize<T>(TypeModel model, T value)
