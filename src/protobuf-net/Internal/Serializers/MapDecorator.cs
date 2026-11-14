@@ -49,6 +49,19 @@ namespace ProtoBuf.Internal.Serializers
         private readonly RepeatedSerializerStub _provider;
         private MapSerializer<TCollection, TKey, TValue> Serializer => (MapSerializer<TCollection, TKey, TValue>)_provider.Serializer;
 
+        // see RepeatedDecorator: the interpreted path must not hand a built-in serializer over a surrogate registered in the model
+        private ISerializer<TKey> GetKeyForCall()
+        {
+            var inbuilt = TypeModel.GetInbuiltSerializer<TKey>(_keyCompatibilityLevel, _keyDataFormat);
+            return inbuilt is PrimaryTypeProvider ? null : inbuilt;
+        }
+
+        private ISerializer<TValue> GetValueForCall()
+        {
+            var inbuilt = TypeModel.GetInbuiltSerializer<TValue>(_valueCompatibilityLevel, _valueDataFormat);
+            return inbuilt is PrimaryTypeProvider ? null : inbuilt;
+        }
+
         public Type ExpectedType => typeof(TCollection);
 
         bool IRuntimeProtoSerializerNode.ReturnsValue => true;
@@ -57,13 +70,13 @@ namespace ProtoBuf.Internal.Serializers
 
         public object Read(ref ProtoReader.State state, object value)
             => Serializer.ReadMap(ref state, _features, (TCollection)value, _keyFeatures, _valueFeatures,
-                TypeModel.GetInbuiltSerializer<TKey>(_keyCompatibilityLevel, _keyDataFormat),
-                TypeModel.GetInbuiltSerializer<TValue>(_valueCompatibilityLevel, _valueDataFormat));
+                GetKeyForCall(),
+                GetValueForCall());
 
         public void Write(ref ProtoWriter.State state, object value)
             => Serializer.WriteMap(ref state, _fieldNumber, _features, (TCollection)value, _keyFeatures, _valueFeatures,
-                TypeModel.GetInbuiltSerializer<TKey>(_keyCompatibilityLevel, _keyDataFormat),
-                TypeModel.GetInbuiltSerializer<TValue>(_valueCompatibilityLevel, _valueDataFormat));
+                GetKeyForCall(),
+                GetValueForCall());
 
         public void EmitWrite(CompilerContext ctx, Local valueFrom)
         {

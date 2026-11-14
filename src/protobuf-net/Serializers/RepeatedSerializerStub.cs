@@ -20,7 +20,7 @@ namespace ProtoBuf.Serializers
             ResolveMapTypes(out var key, out var value);
 
             // the key must an any integral or string type (not floating point or bytes)
-            if (!IsValidKey(key, compatibilityLevel, dataFormat)) return false;
+            if (!IsValidKey(key, compatibilityLevel, dataFormat, model?.GuidMapKeysAsString == true)) return false;
 
             // the value cannot be repeated (neither can key, but we ruled that out above)
             var repeated = model is null ? RepeatedSerializers.TryGetRepeatedProvider(value) : model.TryGetRepeatedProvider(value);
@@ -28,7 +28,7 @@ namespace ProtoBuf.Serializers
 
             return true;
 
-            static bool IsValidKey(Type type, CompatibilityLevel compatibilityLevel, DataFormat dataFormat)
+            static bool IsValidKey(Type type, CompatibilityLevel compatibilityLevel, DataFormat dataFormat, bool guidAsString)
             {
                 if (type is null) return false;
                 if (type.IsEnum) return true;
@@ -47,7 +47,7 @@ namespace ProtoBuf.Serializers
                     case TypeCode.UInt64:
                         return true;
                 }
-                if (compatibilityLevel >= CompatibilityLevel.Level300)
+                if (compatibilityLevel >= CompatibilityLevel.Level300 || guidAsString)
                 {   // we'll allow guids as strings as keys
                     if (type == typeof(Guid) && dataFormat != DataFormat.FixedSize) return true;
                 }

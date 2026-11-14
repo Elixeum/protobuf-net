@@ -53,6 +53,7 @@ namespace ProtoBuf.Meta
             AllowParseableTypes = 1 << 16,
             AutoAddProtoContractTypesOnly = 1 << 17,
             AllowSurrogateForBuiltInTypes = 1 << 18,
+            GuidMapKeysAsString = 1 << 19,
         }
 
         /// <summary>
@@ -135,6 +136,16 @@ namespace ProtoBuf.Meta
         {
             get { return GetOption(RuntimeTypeModelOptions.AllowSurrogateForBuiltInTypes); }
             set { SetOption(RuntimeTypeModelOptions.AllowSurrogateForBuiltInTypes, value); }
+        }
+
+        /// <summary>
+        /// Global switch that writes a <see cref="Guid"/> map key as its canonical text (a protobuf <c>map&lt;string, V&gt;</c>) instead of the
+        /// <c>bcl.Guid</c> message, which protobuf cannot use as a map key. Guid values and list elements are not affected.
+        /// </summary>
+        public bool GuidMapKeysAsString
+        {
+            get { return GetOption(RuntimeTypeModelOptions.GuidMapKeysAsString); }
+            set { SetOption(RuntimeTypeModelOptions.GuidMapKeysAsString, value); }
         }
 
         /// <summary>

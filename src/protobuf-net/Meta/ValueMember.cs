@@ -433,6 +433,11 @@ namespace ProtoBuf.Meta
             var valueCompatibilityLevel = GetEffectiveCompatibilityLevel(compatibilityLevel, valueFormat);
 
             repeated.ResolveMapTypes(out var keyType, out var valueType);
+            if (keyType == typeof(Guid) && model is not null && model.GuidMapKeysAsString && keyFormat != DataFormat.FixedSize
+                && keyCompatibilityLevel < CompatibilityLevel.Level300)
+            {   // only the key: the values of the map keep the compatibility level of the member
+                keyCompatibilityLevel = CompatibilityLevel.Level300;
+            }
             _ = TryGetCoreSerializer(model, keyFormat, keyCompatibilityLevel, FlattenRepeated(model, keyType), out var keyWireType, false, false, false, true);
             _ = TryGetCoreSerializer(model, valueFormat, valueCompatibilityLevel, FlattenRepeated(model, valueType), out var valueWireType, asReference, dynamicType, false, true);
 

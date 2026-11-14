@@ -57,12 +57,20 @@ namespace ProtoBuf.Internal.Serializers
             _dataFormat = dataFormat;
         }
 
+        // the compiled path hands the call site a null for the built-in serializer (the callee then asks the model first); the interpreted path
+        // must do the same, otherwise a surrogate registered for a built-in type (DateOnly) is ignored for the elements of a collection
+        private ISerializer<T> GetInbuiltForCall()
+        {
+            var inbuilt = TypeModel.GetInbuiltSerializer<T>(_compatibilityLevel, _dataFormat);
+            return inbuilt is PrimaryTypeProvider ? null : inbuilt;
+        }
+
         public Type ExpectedType => typeof(TCollection);
         public bool RequiresOldValue => true;
         bool IRuntimeProtoSerializerNode.ReturnsValue => true;
 
         public object Read(ref ProtoReader.State state, object value)
-            => Serializer.ReadRepeated(ref state, _features, (TCollection)value, TypeModel.GetInbuiltSerializer<T>(_compatibilityLevel, _dataFormat));
+            => Serializer.ReadRepeated(ref state, _features, (TCollection)value, GetInbuiltForCall());
 
         public void EmitRead(CompilerContext ctx, Local valueFrom)
         {
@@ -79,7 +87,7 @@ namespace ProtoBuf.Internal.Serializers
         }
 
         public void Write(ref ProtoWriter.State state, object value)
-            => Serializer.WriteRepeated(ref state, _fieldNumber, _features, (TCollection)value, TypeModel.GetInbuiltSerializer<T>(_compatibilityLevel, _dataFormat));
+            => Serializer.WriteRepeated(ref state, _fieldNumber, _features, (TCollection)value, GetInbuiltForCall());
 
         public void EmitWrite(CompilerContext ctx, Local valueFrom)
         {
