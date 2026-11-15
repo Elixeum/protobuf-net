@@ -54,6 +54,7 @@ namespace ProtoBuf.Meta
             AutoAddProtoContractTypesOnly = 1 << 17,
             AllowSurrogateForBuiltInTypes = 1 << 18,
             GuidMapKeysAsString = 1 << 19,
+            MapSequenceValues = 1 << 20,
         }
 
         /// <summary>
@@ -147,6 +148,20 @@ namespace ProtoBuf.Meta
             get { return GetOption(RuntimeTypeModelOptions.GuidMapKeysAsString); }
             set { SetOption(RuntimeTypeModelOptions.GuidMapKeysAsString, value); }
         }
+
+        /// <summary>
+        /// Global switch that allows a dictionary whose values are lists (<c>Dictionary&lt;K, List&lt;V&gt;&gt;</c>, <c>V[]</c>, <c>IReadOnlyList&lt;V&gt;</c>, ...):
+        /// protobuf has no <c>map&lt;K, repeated V&gt;</c>, so the list of a value is written as a message with the list as its field 1
+        /// (<c>map&lt;K, Values&gt;</c>, <c>message Values { repeated V items = 1; }</c>). Without it such a member is not a valid map.
+        /// </summary>
+        public bool MapSequenceValues
+        {
+            get { return GetOption(RuntimeTypeModelOptions.MapSequenceValues); }
+            set { SetOption(RuntimeTypeModelOptions.MapSequenceValues, value); }
+        }
+
+        /// <summary>The serializer of the list that is the value of a map when <see cref="MapSequenceValues"/> is on; used by the compiled serializers.</summary>
+        public static ISerializer<T> GetMapSequenceValuesSerializer<T>() => SequenceValuesSerializers.Get<T>();
 
         /// <summary>
         /// Global switch that determines whether DateTime serialization should include the <c>Kind</c> of the date/time.
@@ -416,7 +431,8 @@ namespace ProtoBuf.Meta
                 {
                     continue; // not our concern
                 }
-                if (!IsOutputForcedFor(tmp.Type) && TryGetRepeatedProvider(tmp.Type) is not null) continue;
+                // (with MapSequenceValues a list that is in the list at all is the value of a map and is described as the message it is on the wire)
+                if (!IsOutputForcedFor(tmp.Type) && !MapSequenceValues && TryGetRepeatedProvider(tmp.Type) is not null) continue;
                 tmp.WriteSchema(callstack, bodyBuilder, 0, imports, syntax, package, options.Flags);
             }
 

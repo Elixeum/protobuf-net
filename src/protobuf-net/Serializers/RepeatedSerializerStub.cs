@@ -22,9 +22,13 @@ namespace ProtoBuf.Serializers
             // the key must an any integral or string type (not floating point or bytes)
             if (!IsValidKey(key, compatibilityLevel, dataFormat, model?.GuidMapKeysAsString == true)) return false;
 
-            // the value cannot be repeated (neither can key, but we ruled that out above)
+            // the value cannot be repeated (neither can key, but we ruled that out above), unless the model writes a list as the value of a map
+            // as a message (MapSequenceValues): then the list may not hold lists or maps itself
             var repeated = model is null ? RepeatedSerializers.TryGetRepeatedProvider(value) : model.TryGetRepeatedProvider(value);
-            if (repeated is not null) return false;
+            if (repeated is not null)
+            {
+                return model?.MapSequenceValues == true && !repeated.IsMap && RepeatedSerializers.TryGetRepeatedProvider(repeated.ItemType) is null;
+            }
 
             return true;
 

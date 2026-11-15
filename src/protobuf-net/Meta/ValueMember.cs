@@ -439,7 +439,18 @@ namespace ProtoBuf.Meta
                 keyCompatibilityLevel = CompatibilityLevel.Level300;
             }
             _ = TryGetCoreSerializer(model, keyFormat, keyCompatibilityLevel, FlattenRepeated(model, keyType), out var keyWireType, false, false, false, true);
-            _ = TryGetCoreSerializer(model, valueFormat, valueCompatibilityLevel, FlattenRepeated(model, valueType), out var valueWireType, asReference, dynamicType, false, true);
+            // a list as the value of a protobuf map (MapSequenceValues) is a message
+            var sequenceValues = model is not null && model.MapSequenceValues && repeated.IsMap && model.TryGetRepeatedProvider(valueType) is not null
+                && repeated.IsValidProtobufMap(model, compatibilityLevel, keyFormat);
+            WireType valueWireType;
+            if (sequenceValues)
+            {
+                valueWireType = WireType.String;
+            }
+            else
+            {
+                _ = TryGetCoreSerializer(model, valueFormat, valueCompatibilityLevel, FlattenRepeated(model, valueType), out valueWireType, asReference, dynamicType, false, true);
+            }
 
             WireType rootWireType = dataFormat == DataFormat.Group ? WireType.StartGroup : WireType.String;
             SerializerFeatures features = rootWireType.AsFeatures(); // | SerializerFeatures.OptionReturnNothingWhenUnchanged;
@@ -454,7 +465,7 @@ namespace ProtoBuf.Meta
             features &= ~(SerializerFeatures.OptionWrappedValue | SerializerFeatures.OptionWrappedValueGroup);
 
             return MapDecorator.Create(repeated, keyType, valueType, fieldNumber, features,
-                keyWireType.AsFeatures(), keyCompatibilityLevel, keyFormat, valueFeatures, valueCompatibilityLevel, valueFormat);
+                keyWireType.AsFeatures(), keyCompatibilityLevel, keyFormat, valueFeatures, valueCompatibilityLevel, valueFormat, sequenceValues);
         }
 
         void ComposeListFeatures(ref SerializerFeatures listFeatures)

@@ -10,7 +10,7 @@ namespace ProtoBuf.Internal.Serializers
         public static IRuntimeProtoSerializerNode Create(RepeatedSerializerStub provider, Type keyType, Type valueType,
             int fieldNumber, SerializerFeatures features,
             SerializerFeatures keyFeatures, CompatibilityLevel keyCompatibilityLevel, DataFormat keyDataFormat,
-            SerializerFeatures valueFeatures, CompatibilityLevel valueCompatibilityLevel, DataFormat valueDataFormat)
+            SerializerFeatures valueFeatures, CompatibilityLevel valueCompatibilityLevel, DataFormat valueDataFormat, bool sequenceValues = false)
         {
             if (provider is null) ThrowHelper.ThrowArgumentNullException(nameof(provider));
             _ = provider.Serializer; // primes and validates
@@ -19,7 +19,7 @@ namespace ProtoBuf.Internal.Serializers
                 new object[] { fieldNumber, features,
                     keyFeatures, keyCompatibilityLevel, keyDataFormat,
                     valueFeatures, valueCompatibilityLevel, valueDataFormat,
-                    provider });
+                    provider, sequenceValues });
         }
     }
     internal class MapDecorator<TCollection, TKey, TValue> : IRuntimeProtoSerializerNode, ICompiledSerializer
@@ -29,9 +29,10 @@ namespace ProtoBuf.Internal.Serializers
             int fieldNumber, SerializerFeatures features,
             SerializerFeatures keyFeatures, CompatibilityLevel keyCompatibilityLevel, DataFormat keyDataFormat,
             SerializerFeatures valueFeatures, CompatibilityLevel valueCompatibilityLevel, DataFormat valueDataFormat,
-            RepeatedSerializerStub provider)
+            RepeatedSerializerStub provider, bool sequenceValues = false)
         {
             _provider = provider;
+            _sequenceValues = sequenceValues;
             _features = features;
             _keyFeatures = keyFeatures;
             _keyCompatibilityLevel = keyCompatibilityLevel;
@@ -42,6 +43,8 @@ namespace ProtoBuf.Internal.Serializers
             _fieldNumber = fieldNumber;
         }
         private readonly int _fieldNumber;
+        // the value is a list written as a message (RuntimeTypeModel.MapSequenceValues)
+        private readonly bool _sequenceValues;
         private readonly SerializerFeatures _features, _keyFeatures, _valueFeatures;
         private readonly CompatibilityLevel _keyCompatibilityLevel, _valueCompatibilityLevel;
         private readonly DataFormat _keyDataFormat, _valueDataFormat;
@@ -58,6 +61,7 @@ namespace ProtoBuf.Internal.Serializers
 
         private ISerializer<TValue> GetValueForCall()
         {
+            if (_sequenceValues) return SequenceValuesSerializers.Get<TValue>();
             var inbuilt = TypeModel.GetInbuiltSerializer<TValue>(_valueCompatibilityLevel, _valueDataFormat);
             return inbuilt is PrimaryTypeProvider ? null : inbuilt;
         }
@@ -92,7 +96,14 @@ namespace ProtoBuf.Internal.Serializers
             ctx.LoadValue((int)_keyFeatures);
             ctx.LoadValue((int)_valueFeatures);
             ctx.LoadSelfAsService<ISerializer<TKey>, TKey>(_keyCompatibilityLevel, _keyDataFormat);
-            ctx.LoadSelfAsService<ISerializer<TValue>, TValue>(_valueCompatibilityLevel, _valueDataFormat);
+            if (_sequenceValues)
+            {
+                ctx.EmitCall(typeof(RuntimeTypeModel).GetMethod(nameof(RuntimeTypeModel.GetMapSequenceValuesSerializer)).MakeGenericMethod(typeof(TValue)));
+            }
+            else
+            {
+                ctx.LoadSelfAsService<ISerializer<TValue>, TValue>(_valueCompatibilityLevel, _valueDataFormat);
+            }
             ctx.EmitCall(method);
         }
         public void EmitRead(CompilerContext ctx, Local valueFrom)
@@ -107,7 +118,14 @@ namespace ProtoBuf.Internal.Serializers
             ctx.LoadValue((int)_keyFeatures);
             ctx.LoadValue((int)_valueFeatures);
             ctx.LoadSelfAsService<ISerializer<TKey>, TKey>(_keyCompatibilityLevel, _keyDataFormat);
-            ctx.LoadSelfAsService<ISerializer<TValue>, TValue>(_valueCompatibilityLevel, _valueDataFormat);
+            if (_sequenceValues)
+            {
+                ctx.EmitCall(typeof(RuntimeTypeModel).GetMethod(nameof(RuntimeTypeModel.GetMapSequenceValuesSerializer)).MakeGenericMethod(typeof(TValue)));
+            }
+            else
+            {
+                ctx.LoadSelfAsService<ISerializer<TValue>, TValue>(_valueCompatibilityLevel, _valueDataFormat);
+            }
             ctx.EmitCall(method);
         }
     }
