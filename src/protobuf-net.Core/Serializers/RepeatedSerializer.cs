@@ -521,7 +521,7 @@ namespace ProtoBuf.Serializers
             }
             else
             {
-                if (typeof(TCollection) == typeof(IEnumerable<T>))
+                if (typeof(TCollection) == typeof(IEnumerable<T>) || CanBeReplacedByList)
                 {
                     // this is a recognised case; we'll use the same default type as Initialize
                     values = Initialize(default, context);
@@ -546,11 +546,23 @@ namespace ProtoBuf.Serializers
                         collection.Add(item);
                     break;
                 default:
+                    if (CanBeReplacedByList)
+                    {
+                        // a member declared as IReadOnlyList<T> / IReadOnlyCollection<T> / IEnumerable<T> / IList<T> / ICollection<T> whose current value is
+                        // read-only (an empty array or a collection expression `[]` set by an initializer): the data is read into a new List<T>, which
+                        // is assigned to the member (an init accessor is fine)
+                        var list = values is null ? new List<T>() : new List<T>(values);
+                        list.AddRange(newValues);
+                        return (TCollection)(object)list;
+                    }
                     ThrowInvalidCollectionType(values);
                     break;
             }
             return values;
         }
+
+        /// <summary>The declared type is an interface that a <see cref="List{T}"/> satisfies, so a read-only current value can be replaced by one.</summary>
+        private static bool CanBeReplacedByList { get; } = typeof(TCollection).IsInterface && typeof(TCollection).IsAssignableFrom(typeof(List<T>));
     }
 
     sealed class VectorSerializer<T> : RepeatedSerializer<T[], T>
